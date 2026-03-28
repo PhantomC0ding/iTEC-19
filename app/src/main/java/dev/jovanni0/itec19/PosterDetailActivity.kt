@@ -57,6 +57,7 @@ import androidx.compose.ui.layout.onSizeChanged
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.lifecycleScope
 import dev.jovanni0.itec19.server_connection.WebSocketManager
+import dev.jovanni0.itec19.stores.DrawingStore
 import java.util.UUID
 
 

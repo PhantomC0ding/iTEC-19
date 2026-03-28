@@ -4,7 +4,7 @@ package dev.jovanni0.itec19.server_connection
 import android.util.Log
 import dev.jovanni0.itec19.ClearEvent
 import dev.jovanni0.itec19.DrawEvent
-import dev.jovanni0.itec19.DrawingStore
+import dev.jovanni0.itec19.stores.DrawingStore
 import dev.jovanni0.itec19.HistoryEvent
 import dev.jovanni0.itec19.StrokeAddedEvent
 import dev.jovanni0.itec19.StrokePayload

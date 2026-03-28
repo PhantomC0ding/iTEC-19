@@ -3,72 +3,105 @@ package dev.jovanni0.itec19
 import android.Manifest
 import android.content.pm.PackageManager
 import android.os.Bundle
-import android.util.Log
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
 import androidx.activity.result.contract.ActivityResultContracts
+import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.size
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.LocationOn
+import androidx.compose.material.icons.filled.Home
+import androidx.compose.material3.Icon
+import androidx.compose.material3.NavigationBar
+import androidx.compose.material3.NavigationBarItem
+import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Text
-import androidx.compose.runtime.*
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableIntStateOf
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.unit.dp
 import androidx.core.content.ContextCompat
-import androidx.lifecycle.lifecycleScope
-import dev.jovanni0.itec19.ar.ArOverlayScene
-import dev.jovanni0.itec19.navigation.AppNavHost
-import dev.jovanni0.itec19.server_connection.DrawingWebSocketClient
-import kotlinx.coroutines.launch
+import dev.jovanni0.itec19.screen.ArScreen
+import dev.jovanni0.itec19.screen.MapScreen
 
 class MainActivity : ComponentActivity() {
-
     private var canShowAR by mutableStateOf(false)
-
-    private val deviceId = "device1"
-    private var wsClient: DrawingWebSocketClient? = null
-    private var currentPosterId: String? = null
 
     private val requestPermissionLauncher = registerForActivityResult(
         ActivityResultContracts.RequestPermission()
-    ) { isGranted -> canShowAR = isGranted }
+    ) { isGranted ->
+        canShowAR = isGranted
+    }
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
 
-        canShowAR = ContextCompat.checkSelfPermission(this, Manifest.permission.CAMERA) ==
-                PackageManager.PERMISSION_GRANTED
-
-        if (!canShowAR) requestPermissionLauncher.launch(Manifest.permission.CAMERA)
+        if (ContextCompat.checkSelfPermission(this, Manifest.permission.CAMERA) == PackageManager.PERMISSION_GRANTED) {
+            canShowAR = true
+        } else {
+            requestPermissionLauncher.launch(Manifest.permission.CAMERA)
+        }
 
         setContent {
-            if (canShowAR)
-            {
-                AppNavHost(onPosterDetected = { posterName -> switchToPoster(posterName) })
+            var selectedTab by remember { mutableIntStateOf(0) }
+
+            Scaffold(
+                bottomBar = {
+                    NavigationBar {
+                        NavigationBarItem(
+                            selected = selectedTab == 0,
+                            onClick = { selectedTab = 0 },
+                            icon = { Icon(Icons.Default.Home, contentDescription = "Home") },
+                            label = { Text("Home") }
+                        )
+                        NavigationBarItem(
+                            selected = selectedTab == 1,
+                            onClick = { selectedTab = 1 },
+                            icon = { Icon(Icons.Default.LocationOn, contentDescription = "Map") },
+                            label = { Text("Map") }
+                        )
+                    }
+                }
+            ) { innerPadding ->
+                Box(modifier = Modifier.fillMaxSize().padding(innerPadding)) {
+                    if (canShowAR)
+                    {
+                        ArScreen(
+                            assets = assets,
+                            modifier = Modifier.fillMaxSize().then(
+                                if (selectedTab == 0) Modifier else Modifier.size(0.dp)
+                            ),
+                            isActive = selectedTab == 0
+                        )
+                    }
+                    else if (selectedTab == 0)
+                    {
+                        Box(
+                            Modifier
+                                .fillMaxSize()
+                                .background(Color.White)
+                        ) {
+                            Text("Waiting for Camera...")
+                        }
+                    }
+
+                    if (selectedTab == 1)
+                    {
+                        MapScreen(
+                            modifier = Modifier
+                                .fillMaxSize()
+                                .background(Color.White)
+                        )
+                    }
+                }
             }
-            else
-            {
-                Box(Modifier.fillMaxSize()) { Text("Waiting for Camera...") }
-            }
-        }
-    }
-
-    override fun onDestroy() {
-        super.onDestroy()
-        lifecycleScope.launch { wsClient?.close() }
-    }
-
-    private fun switchToPoster(posterId: String) {
-//        Log.d("State", "Switched to edit view")
-
-        if (currentPosterId == posterId) return
-        lifecycleScope.launch {
-            wsClient?.close()
-            currentPosterId = posterId
-            wsClient = DrawingWebSocketClient(
-                posterId = posterId,
-                deviceId = deviceId,
-                serverIp = "10.209.127.241"
-            )
-            wsClient?.connect()
         }
     }
 }
