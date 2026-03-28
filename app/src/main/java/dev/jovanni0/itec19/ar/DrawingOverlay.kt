@@ -1,5 +1,6 @@
 package dev.jovanni0.itec19.ar
 
+import android.util.Log
 import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.gestures.detectTapGestures
 import androidx.compose.foundation.layout.fillMaxSize
@@ -23,6 +24,7 @@ fun DrawingOverlay(
         modifier = Modifier
             .fillMaxSize()
             .pointerInput(Unit) {
+                Log.d("State", "Tap")
                 detectTapGestures { tapOffset ->
                     if (cornerPoints.size == 4 && isPointInQuad(tapOffset, cornerPoints)) {
                         onTap()

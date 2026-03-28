@@ -2,6 +2,7 @@ package dev.jovanni0.itec19.ar
 
 import android.content.Context
 import android.content.Intent
+import android.util.Log
 import androidx.compose.foundation.layout.*
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
@@ -10,6 +11,8 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.input.pointer.PointerEventPass
+import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.layout.onSizeChanged
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.unit.IntSize
@@ -30,7 +33,8 @@ fun ArOverlayScene(onPosterDetected: (String) -> Unit) {
 
     Box(modifier = Modifier.fillMaxSize()) {
         ARScene(
-            modifier = Modifier.fillMaxSize(),
+            modifier = Modifier
+                .fillMaxSize(),
             onSessionCreated = { session -> configureSession(context, session) },
             onSessionUpdated = { _, frame ->
                 val visible = frame.getUpdatedTrackables(AugmentedImage::class.java)
@@ -69,7 +73,10 @@ fun ArOverlayScene(onPosterDetected: (String) -> Unit) {
     }
 }
 
-private fun handleTap(context: Context, trackedImage: AugmentedImage?) {
+private fun handleTap(context: Context, trackedImage: AugmentedImage?)
+{
+    Log.d("State", "Caught tap on poster")
+
     val posterName = trackedImage?.name ?: return
     context.startActivity(
         Intent(context, PosterDetailActivity::class.java).apply {

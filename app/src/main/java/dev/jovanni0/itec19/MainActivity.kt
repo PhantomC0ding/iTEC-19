@@ -3,6 +3,7 @@ package dev.jovanni0.itec19
 import android.Manifest
 import android.content.pm.PackageManager
 import android.os.Bundle
+import android.util.Log
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
 import androidx.activity.result.contract.ActivityResultContracts
@@ -14,6 +15,7 @@ import androidx.compose.ui.Modifier
 import androidx.core.content.ContextCompat
 import androidx.lifecycle.lifecycleScope
 import dev.jovanni0.itec19.ar.ArOverlayScene
+import dev.jovanni0.itec19.navigation.AppNavHost
 import dev.jovanni0.itec19.server_connection.DrawingWebSocketClient
 import kotlinx.coroutines.launch
 
@@ -38,11 +40,12 @@ class MainActivity : ComponentActivity() {
         if (!canShowAR) requestPermissionLauncher.launch(Manifest.permission.CAMERA)
 
         setContent {
-            if (canShowAR) {
-                ArOverlayScene(
-                    onPosterDetected = { posterName -> switchToPoster(posterName) }
-                )
-            } else {
+            if (canShowAR)
+            {
+                AppNavHost(onPosterDetected = { posterName -> switchToPoster(posterName) })
+            }
+            else
+            {
                 Box(Modifier.fillMaxSize()) { Text("Waiting for Camera...") }
             }
         }
@@ -54,6 +57,8 @@ class MainActivity : ComponentActivity() {
     }
 
     private fun switchToPoster(posterId: String) {
+//        Log.d("State", "Switched to edit view")
+
         if (currentPosterId == posterId) return
         lifecycleScope.launch {
             wsClient?.close()
