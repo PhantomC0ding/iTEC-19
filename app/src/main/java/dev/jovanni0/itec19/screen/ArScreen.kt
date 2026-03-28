@@ -89,39 +89,18 @@ fun ArScreen(assets: AssetManager, modifier: Modifier = Modifier, isActive: Bool
                     disconnectJob?.cancel()
                     disconnectJob = null
 
-                    // Connect only if this is a new poster
-//                    if (connectedPosterId != visiblePoster.name)
-//                    {
-//                        Log.d("WebSocket", "Triggered connection for new poster ${visiblePoster.name}")
-//
-////                        WebSocketManager.close()
-//
-//                        WebSocketManager.connect(
-//                            visiblePoster.name,
-//                            AppStore.deviceId,
-//                            AppStore.SERVER_IP,
-//                            DrawingStore.getLastStrokeId(visiblePoster.name).toString(),
-//                            scope
-//                        )
-//                        connectedPosterId = visiblePoster.name
-//                    }
-
                     if (connectedPosterId != visiblePoster.name)
                     {
                         Log.d("WebSocket", "Triggered connection for new poster ${visiblePoster.name}")
                         val targetPoster = visiblePoster.name
                         connectedPosterId = targetPoster
 
-                        scope.launch {
-                            WebSocketManager.close()
-                            WebSocketManager.connect(
-                                targetPoster,
-                                AppStore.deviceId,
-                                AppStore.SERVER_IP,
-                                DrawingStore.getLastStrokeId(targetPoster).toString(),
-                                scope
-                            )
-                        }
+                        WebSocketManager.connect(
+                            targetPoster,
+                            AppStore.deviceId,
+                            AppStore.SERVER_IP,
+                            DrawingStore.getLastStrokeId(targetPoster).toString(),
+                        )
                     }
 
                     statusMessage = "Found ${visiblePoster.name}"

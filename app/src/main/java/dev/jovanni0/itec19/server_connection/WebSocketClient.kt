@@ -10,6 +10,7 @@ import dev.jovanni0.itec19.HistoryEvent
 import dev.jovanni0.itec19.StrokeAddedEvent
 import dev.jovanni0.itec19.StrokePayload
 import dev.jovanni0.itec19.UndoEvent
+import dev.jovanni0.itec19.data.Team
 import dev.jovanni0.itec19.stores.AppStore.team
 import dev.jovanni0.itec19.toLocalStroke
 import io.ktor.websocket.Frame
@@ -42,6 +43,7 @@ class WebSocketClient(
                 subclass(UndoEvent::class)
                 subclass(ClearEvent::class)
                 subclass(HistoryEvent::class)
+                subclass(DominanceEvent::class)
             }
         }
         classDiscriminator = "type"
@@ -74,6 +76,8 @@ class WebSocketClient(
         }
         catch (e: Exception)
         {
+            Log.d("State", "Error trying to connect to server on IP $serverIp:8080, ${e.toString()}")
+
 //            if (disconnectedCleanly) return
             if (e is kotlinx.coroutines.CancellationException)
             {
@@ -99,20 +103,6 @@ class WebSocketClient(
         session?.send(jsonSerializer.encodeToString(event))
 
         Log.d("WebSocket", "Sent stroke update to server: $event")
-    }
-
-
-    suspend fun sendUndo()
-    {
-        val event = UndoEvent(posterId, deviceId) as DrawEvent
-        session?.send(jsonSerializer.encodeToString(event))
-    }
-
-
-    suspend fun sendClear()
-    {
-        val event = ClearEvent(posterId, deviceId) as DrawEvent
-        session?.send(jsonSerializer.encodeToString(event))
     }
 
 
@@ -154,7 +144,8 @@ class WebSocketClient(
             }
 
             is DominanceEvent -> {
-                DrawingStore.dominance[event.posterId] = team
+                val dominantTeam = event.team?.let { name -> Team.entries.firstOrNull { it.name == name } }
+                DrawingStore.dominance[event.posterId] = dominantTeam
 
                 Log.d("WebSocket", "${event.team} is dominating on poster ${event.posterId}!")
             }

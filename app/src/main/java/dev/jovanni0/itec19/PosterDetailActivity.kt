@@ -2,9 +2,7 @@ package dev.jovanni0.itec19
 
 import android.graphics.Bitmap
 import android.graphics.BitmapFactory
-//import android.graphics.BlendMode
 import androidx.compose.ui.graphics.BlendMode
-//import android.graphics.Path
 import androidx.compose.ui.graphics.Path
 import android.os.Bundle
 import android.util.Log
@@ -74,16 +72,8 @@ class PosterDetailActivity : ComponentActivity()
         val posterBitmap = applicationContext.assets.open("$posterName.png").use {
             BitmapFactory.decodeStream(it)
         }
-        val lastStrokeId = DrawingStore.drawings[posterName]?.lastOrNull()?.second?.strokeId
 
         Log.d("State", "Opened poster page")
-        WebSocketManager.connect(
-            posterName,
-            AppStore.deviceId,
-            AppStore.SERVER_IP,
-            lastStrokeId.toString(),
-            lifecycleScope
-        )
 
         setContent {
             PosterDetailScreen(
@@ -92,12 +82,6 @@ class PosterDetailActivity : ComponentActivity()
                 onBack = { finish() }
             )
         }
-    }
-
-    override fun onDestroy() {
-        super.onDestroy()
-
-        WebSocketManager.close()
     }
 
     fun pushUpdate2Store(posterName: String, paths: List<Pair<List<Offset>, DrawConfig>>)
@@ -117,7 +101,7 @@ class PosterDetailActivity : ComponentActivity()
             )
         )
 
-        WebSocketManager.sendStroke(stroke, lifecycleScope)
+        WebSocketManager.sendStroke(stroke)
     }
 
     @Composable
@@ -126,9 +110,6 @@ class PosterDetailActivity : ComponentActivity()
         posterBitmap: Bitmap,
         onBack: () -> Unit
     ) {
-//        var paths by remember {
-//            mutableStateOf(DrawingStore.drawings[posterName] ?: emptyList())
-//        }
         var paths = DrawingStore.drawings[posterName] ?: emptyList()
         var currentPath by remember { mutableStateOf<Path?>(null) }
         var rawPoints by remember { mutableStateOf(listOf<Offset>()) }
@@ -215,7 +196,6 @@ class PosterDetailActivity : ComponentActivity()
                                                 deviceId = AppStore.deviceId
                                             )
                                         )
-//                                    DrawingStore.drawings[posterName] = paths
                                         pushUpdate2Store(posterName, paths)
                                     }
                                     currentPath = null
