@@ -16,6 +16,7 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -37,8 +38,13 @@ import dev.jovanni0.itec19.PosterDetailActivity
 import dev.jovanni0.itec19.ar.buildImageDatabase
 import dev.jovanni0.itec19.ar.isPointInQuad
 import dev.jovanni0.itec19.ar.mapNormalizedStrokeToQuad
+import dev.jovanni0.itec19.server_connection.WebSocketManager
+import dev.jovanni0.itec19.stores.AppStore
 import dev.jovanni0.itec19.stores.DrawingStore
 import io.github.sceneview.ar.ARScene
+import kotlinx.coroutines.Job
+import kotlinx.coroutines.delay
+import kotlinx.coroutines.launch
 import kotlin.collections.get
 
 @Composable
@@ -49,6 +55,11 @@ fun ArScreen(assets: AssetManager, modifier: Modifier = Modifier, isActive: Bool
     var cornerPoints by remember { mutableStateOf<List<Offset>>(emptyList()) }
     var canvasSize by remember { mutableStateOf(IntSize.Zero) }
     val context = LocalContext.current
+
+    // server connection
+    var connectedPosterId by remember { mutableStateOf<String?>(null) }
+    var disconnectJob by remember { mutableStateOf<Job?>(null) }
+    val scope = rememberCoroutineScope()
 
     fun configureSession(session: Session) {
         val config = Config(session).apply {
@@ -72,7 +83,26 @@ fun ArScreen(assets: AssetManager, modifier: Modifier = Modifier, isActive: Bool
                     }
                 trackedImage = visiblePoster
 
-                if (visiblePoster != null) {
+                if (visiblePoster != null)
+                {
+                    disconnectJob?.cancel()
+                    disconnectJob = null
+
+                    // Connect only if this is a new poster
+                    if (connectedPosterId != visiblePoster.name)
+                    {
+                        Log.d("WebSocket", "Triggered connection for new poster ${visiblePoster.name}")
+
+                        WebSocketManager.connect(
+                            visiblePoster.name,
+                            AppStore.deviceId,
+                            AppStore.SERVER_IP,
+                            DrawingStore.getLastStrokeId(visiblePoster.name).toString(),
+                            scope
+                        )
+                        connectedPosterId = visiblePoster.name
+                    }
+
                     statusMessage = "Found ${visiblePoster.name}"
 
                     try {
@@ -117,6 +147,18 @@ fun ArScreen(assets: AssetManager, modifier: Modifier = Modifier, isActive: Bool
                 } else {
                     statusMessage = "Looking for poster..."
                     cornerPoints = emptyList()
+
+                    if (disconnectJob == null && connectedPosterId != null)
+                    {
+                        disconnectJob = scope.launch {
+                            delay(3000)
+                            WebSocketManager.close()
+                            connectedPosterId = null
+                            disconnectJob = null
+
+                            Log.d("WebSocket", "Triggered disconnection from server because poster left frame")
+                        }
+                    }
                 }
             }
         )
@@ -143,18 +185,6 @@ fun ArScreen(assets: AssetManager, modifier: Modifier = Modifier, isActive: Bool
                         }
                         else Modifier
                     )
-//                    .pointerInput(Unit) {
-//                        detectTapGestures { tapOffset ->
-//                            Log.d("AR_TAP", "Tapped at $tapOffset")
-//                            if (cornerPoints.size == 4 && isPointInQuad(tapOffset, cornerPoints)) {
-//                                val posterName = trackedImage?.name ?: return@detectTapGestures
-//                                val intent = Intent(context, PosterDetailActivity::class.java).apply {
-//                                    putExtra("poster_name", posterName)
-//                                }
-//                                context.startActivity(intent)
-//                            }
-//                        }
-//                    }
             ) {
                 if (cornerPoints.size == 4) {
                     val path = Path().apply {

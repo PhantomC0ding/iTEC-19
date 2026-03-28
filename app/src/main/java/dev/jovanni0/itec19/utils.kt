@@ -25,7 +25,9 @@ fun StrokePayload.toLocalStroke(): Pair<List<Offset>, DrawConfig>
         DrawConfig(
             color = Color(config.color),
             strokeWidth = config.strokeWidth,
-            blendMode = if (config.isEraser) BlendMode.Clear else BlendMode.SrcOver
+            blendMode = if (config.isEraser) BlendMode.Clear else BlendMode.SrcOver,
+            deviceId = deviceId,
+            strokeId = id
         )
     )
 }

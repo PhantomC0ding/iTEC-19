@@ -66,7 +66,7 @@ data class NormalizedOffset(val x: Float, val y: Float)
 
 @Serializable
 data class DrawConfigPayload(
-    val color: Long,              // ARGB packed as Long
+    val color: Int,
     val strokeWidth: Float,
     val isEraser: Boolean
 )
@@ -76,5 +76,6 @@ data class DrawConfig(
     val color: Color,
     val strokeWidth: Float,
     val blendMode: BlendMode = BlendMode.SrcOver,
-    val deviceId: String = ""
+    val deviceId: String,
+    val strokeId: String
 )

@@ -30,6 +30,7 @@ import androidx.compose.ui.unit.dp
 import androidx.core.content.ContextCompat
 import dev.jovanni0.itec19.screen.ArScreen
 import dev.jovanni0.itec19.screen.MapScreen
+import dev.jovanni0.itec19.stores.AppStore
 
 class MainActivity : ComponentActivity() {
     private var canShowAR by mutableStateOf(false)
@@ -40,8 +41,11 @@ class MainActivity : ComponentActivity() {
         canShowAR = isGranted
     }
 
-    override fun onCreate(savedInstanceState: Bundle?) {
+    override fun onCreate(savedInstanceState: Bundle?)
+    {
         super.onCreate(savedInstanceState)
+
+        AppStore.init(this)
 
         if (ContextCompat.checkSelfPermission(this, Manifest.permission.CAMERA) == PackageManager.PERMISSION_GRANTED) {
             canShowAR = true

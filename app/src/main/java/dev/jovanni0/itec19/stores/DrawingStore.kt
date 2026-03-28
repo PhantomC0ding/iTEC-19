@@ -6,4 +6,9 @@ import dev.jovanni0.itec19.DrawConfig
 
 object DrawingStore {
     val drawings = mutableStateMapOf<String, List<Pair<List<Offset>, DrawConfig>>>()
+
+    fun getLastStrokeId(posterId: String): String?
+    {
+        return this.drawings[posterId]?.lastOrNull()?.second?.strokeId
+    }
 }

@@ -4,36 +4,47 @@ import android.util.Log
 import dev.jovanni0.itec19.StrokePayload
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.launch
-
+import kotlinx.coroutines.runBlocking
 
 
 object WebSocketManager
 {
-    private var client: DrawingWebSocketClient? = null
+    private var client: WebSocketClient? = null
     private var currentPosterId: String? = null
     private var isConnected: Boolean = false
 
 
-    fun connect(posterId: String, deviceId: String, serverIp: String, scope: CoroutineScope)
-    {
+    fun connect(
+        posterId: String,
+        deviceId: String,
+        serverIp: String,
+        lastStrokeId: String,
+        scope: CoroutineScope,
+    ) {
         if (currentPosterId == posterId) return
 
         scope.launch {
             client?.close()
             currentPosterId = posterId
-            client = DrawingWebSocketClient(posterId, deviceId, serverIp)
-
-            isConnected = client?.connect() == true
-
-            Log.d("State", "WebSocketManager connected to room $currentPosterId")
+            client = WebSocketClient(
+                posterId,
+                deviceId,
+                serverIp,
+                lastStrokeId = lastStrokeId,
+                onConnected = { isConnected = true },
+                onDisconnected = { isConnected = false },
+                onError = { isConnected = false }
+            )
+            client?.connect()
         }
+        Log.d("State", "WebSocketManager tried connecting to room $currentPosterId")
     }
 
 
     fun sendStroke(stroke: StrokePayload, scope: CoroutineScope)
     {
         if (!isConnected) {
-            Log.d("State", "Could not send stroke because not connected to server.")
+            Log.d("WebSocket", "Could not send stroke because not connected to server.")
             return
         }
 
@@ -45,15 +56,27 @@ object WebSocketManager
     }
 
 
-    fun close(scope: CoroutineScope)
+//    fun close(scope: CoroutineScope)
+//    {
+//        scope.launch {
+//            client?.close()
+//
+//            Log.d("State", "WebSocketManager disconnected from room $currentPosterId")
+//
+//            client = null
+//            currentPosterId = null
+//        }
+//    }
+// In WebSocketManager
+    fun close()
     {
-        scope.launch {
+        runBlocking {
             client?.close()
-
-            Log.d("State", "WebSocketManager disconnected from room $currentPosterId")
-
-            client = null
-            currentPosterId = null
         }
+
+        Log.d("State", "WebSocketManager disconnected from room $currentPosterId")
+
+        client = null
+        currentPosterId = null
     }
 }

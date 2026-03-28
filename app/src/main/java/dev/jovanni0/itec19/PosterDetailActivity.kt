@@ -7,6 +7,7 @@ import androidx.compose.ui.graphics.BlendMode
 //import android.graphics.Path
 import androidx.compose.ui.graphics.Path
 import android.os.Bundle
+import android.util.Log
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
 import androidx.compose.foundation.Canvas
@@ -47,30 +48,41 @@ import androidx.compose.ui.draw.clip
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.geometry.Size
 import androidx.compose.ui.graphics.Color
-import androidx.compose.ui.graphics.PaintingStyle.Companion.Stroke
 import androidx.compose.ui.graphics.StrokeCap
 import androidx.compose.ui.graphics.StrokeJoin
 import androidx.compose.ui.graphics.drawscope.Stroke
 import androidx.compose.ui.graphics.graphicsLayer
+import androidx.compose.ui.graphics.toArgb
 import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.layout.onSizeChanged
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.lifecycleScope
 import dev.jovanni0.itec19.server_connection.WebSocketManager
+import dev.jovanni0.itec19.stores.AppStore
 import dev.jovanni0.itec19.stores.DrawingStore
 import java.util.UUID
 
 
-class PosterDetailActivity : ComponentActivity() {
-    override fun onCreate(savedInstanceState: Bundle?) {
+class PosterDetailActivity : ComponentActivity()
+{
+    override fun onCreate(savedInstanceState: Bundle?)
+    {
         super.onCreate(savedInstanceState)
 
         val posterName = intent.getStringExtra("poster_name") ?: "Unknown"
         val posterBitmap = applicationContext.assets.open("$posterName.png").use {
             BitmapFactory.decodeStream(it)
         }
+        val lastStrokeId = DrawingStore.drawings[posterName]?.lastOrNull()?.second?.strokeId
 
-        WebSocketManager.connect(posterName, "device1", "10.209.127.241", lifecycleScope)
+        Log.d("State", "Opened poster page")
+        WebSocketManager.connect(
+            posterName,
+            AppStore.deviceId,
+            AppStore.SERVER_IP,
+            lastStrokeId.toString(),
+            lifecycleScope
+        )
 
         setContent {
             PosterDetailScreen(
@@ -84,7 +96,7 @@ class PosterDetailActivity : ComponentActivity() {
     override fun onDestroy() {
         super.onDestroy()
 
-        WebSocketManager.close(lifecycleScope)
+        WebSocketManager.close()
     }
 
     fun pushUpdate2Store(posterName: String, paths: List<Pair<List<Offset>, DrawConfig>>)
@@ -93,11 +105,11 @@ class PosterDetailActivity : ComponentActivity() {
 
         val lastStroke = paths.lastOrNull() ?: return
         val stroke = StrokePayload(
-            id = UUID.randomUUID().toString(),
-            deviceId = "device1",
+            id = lastStroke.second.strokeId,
+            deviceId = lastStroke.second.deviceId,
             points = lastStroke.first.map { NormalizedOffset(it.x, it.y) },
             config = DrawConfigPayload(
-                color = lastStroke.second.color.value.toLong(),
+                color = lastStroke.second.color.toArgb(),
                 strokeWidth = lastStroke.second.strokeWidth,
                 isEraser = lastStroke.second.blendMode == BlendMode.Clear
             )
@@ -112,11 +124,10 @@ class PosterDetailActivity : ComponentActivity() {
         posterBitmap: Bitmap,
         onBack: () -> Unit
     ) {
-        // Drawing state
-//    var paths by remember { mutableStateOf(listOf<Pair<Path, DrawConfig>>()) }
-        var paths by remember {
-            mutableStateOf(DrawingStore.drawings[posterName] ?: emptyList())
-        }
+//        var paths by remember {
+//            mutableStateOf(DrawingStore.drawings[posterName] ?: emptyList())
+//        }
+        var paths = DrawingStore.drawings[posterName] ?: emptyList()
         var currentPath by remember { mutableStateOf<Path?>(null) }
         var rawPoints by remember { mutableStateOf(listOf<Offset>()) }
         var selectedColor by remember { mutableStateOf(Color.Red) }
@@ -144,7 +155,6 @@ class PosterDetailActivity : ComponentActivity() {
                     if (paths.isNotEmpty())
                     {
                         paths = paths.dropLast(1)
-//                    DrawingStore.drawings[posterName] = paths
                         pushUpdate2Store(posterName, paths)
                     }
                 }) {
@@ -198,7 +208,9 @@ class PosterDetailActivity : ComponentActivity() {
                                             DrawConfig(
                                                 color = if (isEraser) Color.Transparent else selectedColor,
                                                 strokeWidth = strokeWidth,
-                                                blendMode = if (isEraser) BlendMode.Clear else BlendMode.SrcOver
+                                                blendMode = if (isEraser) BlendMode.Clear else BlendMode.SrcOver,
+                                                strokeId = UUID.randomUUID().toString(),
+                                                deviceId = AppStore.deviceId
                                             )
                                         )
 //                                    DrawingStore.drawings[posterName] = paths

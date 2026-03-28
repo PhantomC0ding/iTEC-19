@@ -27,10 +27,14 @@ import kotlinx.serialization.modules.subclass
 
 
 
-class DrawingWebSocketClient(
+class WebSocketClient(
     private val posterId: String,
     private val deviceId: String,
-    private val serverIp: String
+    private val serverIp: String,
+    private val lastStrokeId: String,
+    private val onConnected: () -> Unit,
+    private val onDisconnected: () -> Unit,
+    private val onError: () -> Unit
 ) {
     private val jsonSerializer = Json {
         serializersModule = SerializersModule {
@@ -47,11 +51,17 @@ class DrawingWebSocketClient(
     private var session: ClientWebSocketSession? = null
 
 
-    suspend fun connect(): Boolean
+    suspend fun connect()
     {
+        var disconnectedCleanly = false
+
         try {
-            client.webSocket("ws://$serverIp:8080/draw/$posterId") {
+//            client.webSocket("ws://$serverIp:8080/draw/$posterId") {
+            client.webSocket("ws://$serverIp:8080/draw/$posterId?lastStrokeId=$lastStrokeId") {
                 session = this
+
+                onConnected()
+                Log.d("State", "Connected to server on IP $serverIp:8080")
 
                 for (frame in incoming)
                 {
@@ -59,16 +69,23 @@ class DrawingWebSocketClient(
                     val drawEvent = jsonSerializer.decodeFromString<DrawEvent>(text)
                     handleDrawEvent(drawEvent)
                 }
+
+                disconnectedCleanly = true
+                onDisconnected()
             }
         }
         catch (e: Exception)
         {
-            Log.d("State", "Error trying to connect to server on IP $serverIp")
+            if (disconnectedCleanly) return
+            if (e is kotlinx.coroutines.CancellationException)
+            {
+                Log.d("State", "Disconnected from server on IP $serverIp:8080")
+                return
+            }
 
-            return false
+            Log.d("State", "Error trying to connect to server on IP $serverIp:8080, ${e.toString()}")
+            onError()
         }
-
-        return true
     }
 
 
@@ -83,6 +100,8 @@ class DrawingWebSocketClient(
     {
         val event = StrokeAddedEvent(posterId, deviceId, stroke) as DrawEvent
         session?.send(jsonSerializer.encodeToString(event))
+
+        Log.d("WebSocket", "Sent stroke update to server: $event")
     }
 
 
@@ -105,6 +124,8 @@ class DrawingWebSocketClient(
      */
     private fun handleDrawEvent(event: DrawEvent)
     {
+        Log.d("WebSocket", "Got message from server: $event")
+
         when (event)
         {
             is StrokeAddedEvent -> {
@@ -127,7 +148,12 @@ class DrawingWebSocketClient(
             }
 
             is HistoryEvent -> {
-                DrawingStore.drawings[posterId] = event.strokes.map { it.toLocalStroke() }
+                val current = DrawingStore.drawings[posterId] ?: emptyList()
+                val received_strokes = event.strokes.map { it.toLocalStroke() }
+
+                DrawingStore.drawings[posterId] = current + received_strokes
+
+                Log.d("WebSocket", "Decoded History Event: ${DrawingStore.drawings[posterId]}")
             }
         }
     }
