@@ -7,6 +7,11 @@ import android.graphics.BitmapFactory
 import android.opengl.Matrix
 import android.util.Base64
 import android.util.Log
+import androidx.compose.animation.core.LinearEasing
+import androidx.compose.animation.core.RepeatMode
+import androidx.compose.animation.core.animateFloatAsState
+import androidx.compose.animation.core.infiniteRepeatable
+import androidx.compose.animation.core.tween
 import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.background
 import androidx.compose.foundation.gestures.detectTapGestures
@@ -24,6 +29,7 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateMapOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
@@ -31,6 +37,7 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.geometry.Offset
+import androidx.compose.ui.graphics.BlendMode
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.Path
 import androidx.compose.ui.graphics.asImageBitmap
@@ -114,6 +121,41 @@ fun ArScreen(assets: AssetManager, modifier: Modifier = Modifier, isActive: Bool
             updateMode = Config.UpdateMode.LATEST_CAMERA_IMAGE
         }
         session.configure(config)
+    }
+
+    /**
+     * glitch
+     */
+    var glitchActive by remember { mutableStateOf(false) }
+    var glitchJob by remember { mutableStateOf<Job?>(null) }
+    val recentTeams = remember { mutableStateMapOf<String, Long>() }
+    val glitchOffset by animateFloatAsState(
+        targetValue = if (glitchActive) 1f else 0f,
+        animationSpec = if (glitchActive)
+            infiniteRepeatable(tween(50, easing = LinearEasing), RepeatMode.Reverse)
+        else
+            tween(0),
+        label = "glitch"
+    )
+    val random = remember { kotlin.random.Random }
+
+    LaunchedEffect(currentDrawings?.size) {
+        val lastStroke = currentDrawings?.lastOrNull() ?: return@LaunchedEffect
+        val team = lastStroke.second.deviceId
+
+        recentTeams[team] = System.currentTimeMillis()
+
+        val now = System.currentTimeMillis()
+        recentTeams.entries.removeIf { now - it.value > 10000 }
+
+        if (recentTeams.size > 1) {
+            glitchJob?.cancel()
+            glitchActive = true
+            glitchJob = scope.launch {
+                delay(2000)
+                glitchActive = false
+            }
+        }
     }
 
     Box(modifier = modifier)
@@ -261,14 +303,57 @@ fun ArScreen(assets: AssetManager, modifier: Modifier = Modifier, isActive: Bool
                         lineTo(cornerPoints[3].x, cornerPoints[3].y)
                         close()
                     }
-//                    drawPath(path, color = Color(0x440000FF))
-//                    drawPath(path, color = Color(0xFF00E5FF), style = Stroke(width = 4f))
-                    drawPath(
-                        path,
-//                        color = AppStore.team?.color ?: Color.White,
-                        color = DrawingStore.dominance[trackedImage?.name]?.color ?: Color.White,
-                        style = Stroke(width = 8f)
-                    )
+
+                    if (glitchActive) {
+                        val glitchShift = (glitchOffset * 12f)
+
+                        // red channel shifted left
+                        drawPath(
+                            path,
+                            color = Color.Red.copy(alpha = 0.6f),
+                            style = Stroke(width = 8f),
+                            blendMode = BlendMode.Screen
+                        )
+
+                        // blue channel shifted right
+                        val shiftedPath = Path().apply {
+                            moveTo(cornerPoints[0].x + glitchShift, cornerPoints[0].y)
+                            lineTo(cornerPoints[1].x + glitchShift, cornerPoints[1].y)
+                            lineTo(cornerPoints[2].x + glitchShift, cornerPoints[2].y)
+                            lineTo(cornerPoints[3].x + glitchShift, cornerPoints[3].y)
+                            close()
+                        }
+                        drawPath(
+                            shiftedPath,
+                            color = Color.Cyan.copy(alpha = 0.6f),
+                            style = Stroke(width = 8f),
+                            blendMode = BlendMode.Screen
+                        )
+
+                        // random horizontal scan lines
+                        repeat(5) {
+                            val scanY = cornerPoints[0].y + random.nextFloat() *
+                                    (cornerPoints[3].y - cornerPoints[0].y)
+                            drawLine(
+                                color = Color.White.copy(alpha = 0.3f + random.nextFloat() * 0.4f),
+                                start = Offset(cornerPoints[0].x, scanY),
+                                end = Offset(cornerPoints[1].x, scanY),
+                                strokeWidth = random.nextFloat() * 4f + 1f
+                            )
+                        }
+                    } else {
+                        // normal border
+                        drawPath(
+                            path,
+                            color = DrawingStore.dominance[trackedImage?.name]?.color ?: Color.White,
+                            style = Stroke(width = 8f)
+                        )
+                    }
+//                    drawPath(
+//                        path,
+//                        color = DrawingStore.dominance[trackedImage?.name]?.color ?: Color.White,
+//                        style = Stroke(width = 8f)
+//                    )
 
                     val posterName = trackedImage?.name
                     val posterDrawings = DrawingStore.drawings[posterName]
